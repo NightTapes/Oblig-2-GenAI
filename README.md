@@ -86,9 +86,29 @@ Predefined Python / DuckDB / SciPy calculation
 Verified result → Qwen explanation + optional validated chart
 ```
 
-The action allowlist contains dataset/column descriptions, missing-value summaries, numeric aggregation, descriptive group comparisons, Pearson correlation and chart creation. Arbitrary Python, shell commands and AI-authored SQL are never executed. DuckDB queries use fixed table/column aliases and allowlisted functions. Qwen receives only bounded metadata and verified results, never entire datasets or raw row samples. Dataset text is treated as untrusted content. Separate prompts handle understanding, recommendations, action selection and explanations. Ollama receives a JSON schema, temperature zero and `think: false`; complete reasoning blocks are stripped before parsing and are never rendered.
+The action allowlist contains dataset/column descriptions, missing-value summaries, numeric aggregation, descriptive group comparisons, Pearson correlation and chart creation. Arbitrary Python, shell commands and AI-authored SQL are never executed. DuckDB queries use fixed table/column aliases and allowlisted functions. Qwen receives only bounded metadata and verified results, never entire datasets or raw row samples. Dataset text is treated as untrusted content. Separate prompts handle understanding, recommendations, action selection and explanations. Ollama receives a JSON schema for every phase, including result explanations, low-temperature sampling, `think: false`, and Qwen’s documented `/no_think` prompt marker for compatibility. Reasoning is never combined with final content; the final response is validated before use. A bounded compatibility retry omits the API flag only when an older server explicitly rejects that flag.
 
 Explanations can still be wrong even when calculations are right. The verified result and method notes are the source of truth. If explanation generation fails after calculation, verified results remain visible. Unsupported or ambiguous questions return a clarification/limitation instead of fabricated analysis. Each question is standalone; previous conversation text is displayed but not used as analytical state.
+
+## Troubleshooting the AI assistant
+
+The refresh button checks whether the configured model is **installed**. It does not run an inference test. If you see a verified result followed by an explanation error, Ollama already selected an action and Python already completed the calculation; the explanation phase failed separately.
+
+For local development, run the following **from `backend/`**, in the same environment as FastAPI:
+
+```bash
+uv run python ../scripts/check_ai.py
+```
+
+This prints the effective local URL, model, Ollama version and limits, then runs a tiny disposable dataset through real action selection, Python calculation and explanation. It does not use mocks or your uploaded records. Expected group means are A = 2 and B = 6. A successful test ends with `PASS`. If it fails, it prints the specific failing category. Keep Ollama up to date for Qwen3 non-thinking/structured-output support.
+
+- **Cannot communicate with Ollama:** run `ollama serve` and check `OLLAMA_URL` in `backend/.env`. FastAPI and Ollama must be reachable from the same environment. A working VS Code terminal in Windows does not establish reachability from WSL, a dev container or Docker. Native development defaults to `http://127.0.0.1:11434`; a container using host Ollama needs the documented `host.docker.internal` configuration.
+- **Missing model:** run `ollama list` and `ollama pull qwen3:4b`. Set `OLLAMA_MODEL` to the exact installed tag.
+- **Output token limit / no final answer:** update Ollama and retry. The assistant requests non-thinking mode at both the API and prompt levels and constrains explanations to JSON. If needed, set `AI_MAX_OUTPUT_TOKENS=4096` in `backend/.env` (the supported maximum).
+- **Timeout:** first inference can load model weights and CPU generation can take longer. Set `AI_TIMEOUT_SECONDS=180` if needed.
+- **HTTP 400/500 or invalid structured response:** inspect the Ollama terminal and the FastAPI terminal. The backend records the phase and failure category without logging your question, dataset text or model reasoning. Memory/model-loading errors belong to Ollama; structured-response errors are identified separately.
+
+After changing backend settings or switching branches, **restart FastAPI**. Restart the frontend as well; if using a production build, rebuild it before starting. With Compose, use `docker compose --profile ai up --build -d` and keep `COMPOSE_OLLAMA_URL` pointed at the intended Ollama service. Existing environment files are preserved by Git, so add new variables manually if you want to override their defaults. Verified numerical results remain visible if explanation generation fails; **Retry question** retries the full question.
 
 ## Docker Compose (optional)
 
@@ -126,6 +146,7 @@ Backend variables are documented in [.env.example](.env.example). Local `uvicorn
 | `OLLAMA_URL` | `http://127.0.0.1:11434` | Only loopback, `ollama`, or `host.docker.internal` hosts are accepted |
 | `OLLAMA_MODEL` | `qwen3:4b` | Local model name |
 | `AI_TIMEOUT_SECONDS` | `90` | Timeout per model call |
+| `AI_MAX_OUTPUT_TOKENS` | `2048` | Maximum generated tokens per call (256–4096) |
 | `MAX_UPLOAD_MB` | `20` | File limit; multipart request also has a strict body cap |
 | `MAX_ROWS` / `MAX_COLUMNS` | `200000` / `100` | Import computation bounds |
 | `CHART_POINT_LIMIT` | `2000` | Scatter/line display limit |
