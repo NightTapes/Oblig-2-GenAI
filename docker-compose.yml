@@ -1,0 +1,43 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        API_INTERNAL_URL: http://backend:8000
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      OLLAMA_URL: ${COMPOSE_OLLAMA_URL:-http://ollama:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-20}
+      MAX_ROWS: ${MAX_ROWS:-200000}
+      MAX_COLUMNS: ${MAX_COLUMNS:-100}
+      MAX_STORE_MB: ${MAX_STORE_MB:-500}
+      MAX_SESSION_DATASETS: ${MAX_SESSION_DATASETS:-5}
+      MAX_DATASETS: ${MAX_DATASETS:-100}
+      CHART_POINT_LIMIT: ${CHART_POINT_LIMIT:-2000}
+      DATASET_TTL_SECONDS: ${DATASET_TTL_SECONDS:-7200}
+      AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-90}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      DATA_DIR: /tmp/datalens-datasets
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+  ollama:
+    image: ollama/ollama:0.13.5
+    profiles: ["ai"]
+    volumes:
+      - ollama-models:/root/.ollama
+    restart: unless-stopped
+volumes:
+  ollama-models:
