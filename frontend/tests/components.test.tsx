@@ -188,6 +188,59 @@ describe("AI assistant", () => {
     expect(screen.getByText("AI EXPLANATION")).toBeInTheDocument();
     expect(onChart).toHaveBeenCalledWith({ id: "new" });
   });
+  it("keeps verified numbers visible when explanation fails and allows retry", async () => {
+    vi.mocked(api.chat)
+      .mockResolvedValueOnce({
+        verified: {
+          action: "aggregate",
+          result: { value: 2, n: 3 },
+          note: "Complete values only.",
+          chart: null,
+        },
+        explanation: null,
+        explanation_error:
+          "Ollama reached its output token limit during result explanation.",
+      })
+      .mockResolvedValueOnce({
+        verified: {
+          action: "aggregate",
+          result: { value: 2, n: 3 },
+          note: "Complete values only.",
+          chart: null,
+        },
+        explanation: "Mean x is 2 using 3 values.",
+        explanation_error: null,
+      });
+    render(
+      <Assistant
+        profile={profile}
+        status={ready}
+        onChart={vi.fn()}
+        onRefresh={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    await userEvent.type(
+      screen.getByLabelText("Ask about your data"),
+      "Mean x?",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Send question" }),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("output token limit"),
+    );
+    expect(screen.getByText("VERIFIED RESULT")).toBeVisible();
+    expect(screen.getByText("2", { selector: "strong" })).toBeVisible();
+    expect(screen.queryByText("AI EXPLANATION")).not.toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Retry question" }),
+    );
+    await waitFor(() =>
+      expect(screen.getByText("Mean x is 2 using 3 values.")).toBeVisible(),
+    );
+    expect(api.chat).toHaveBeenCalledTimes(2);
+  });
   it("makes offline status explicit and keeps the conversation input accessible", () => {
     render(
       <Assistant

@@ -75,8 +75,16 @@ class AnalysisAction(StrictModel):
     column: str | None = Field(default=None, max_length=200)
     x_column: str | None = Field(default=None, max_length=200)
     y_column: str | None = Field(default=None, max_length=200)
-    group_by: str | None = Field(default=None, max_length=200)
-    metric: str | None = Field(default=None, max_length=200)
+    group_by: str | None = Field(
+        default=None,
+        max_length=200,
+        description="Exact categorical or boolean column name for grouping, not a value or function.",
+    )
+    metric: str | None = Field(
+        default=None,
+        max_length=200,
+        description="Exact numerical column name to aggregate, not the aggregation function. For example mass_g, never mean.",
+    )
     aggregation: Aggregation = "mean"
     chart: ChartSpec | None = None
     reason: str | None = Field(default=None, max_length=500)
@@ -111,6 +119,10 @@ class AIRecommendations(StrictModel):
 
 class AIOverview(StrictModel):
     summary: str = Field(max_length=1500)
+
+
+class AIExplanation(StrictModel):
+    explanation: str = Field(min_length=1, max_length=2000)
 
 
 class AIStatus(StrictModel):

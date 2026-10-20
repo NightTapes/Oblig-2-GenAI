@@ -255,10 +255,21 @@ export function Assistant({
                     </>
                   )}
                   {m.reply.explanation_error && (
-                    <p className="error-message">
-                      {m.reply.explanation_error} Verified results remain
-                      available.
-                    </p>
+                    <div className="chat-error" role="alert">
+                      <p>
+                        {m.reply.explanation_error} Verified results remain
+                        available.
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={busy || !status?.available}
+                        onClick={() => send(m.question)}
+                      >
+                        <RefreshCw size={12} />
+                        Retry question
+                      </Button>
+                    </div>
                   )}
                 </div>
               )}
@@ -299,7 +310,7 @@ export function Assistant({
           <span className={`status-dot ${status?.available ? "online" : ""}`} />
           <span>
             {status?.available
-              ? "Qwen3 · Local model ready"
+              ? "Qwen3 · Local model installed"
               : "Local AI offline"}
           </span>
           <button onClick={onRefresh} aria-label="Refresh AI status">
